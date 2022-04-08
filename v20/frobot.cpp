@@ -546,12 +546,12 @@ float distance_two_points(vec3* point1,vec3* point2){
 }
 
 vector<vec3> segments_3d(vec3 p1,vec3 p2, int segments=10){
-	vector<vec3> res(segments+1);
+	vector<vec3> res(segments);
 	float xx=p2.x()-p1.x();
 	float yy=p2.y()-p1.y();
 	float zz=p2.z()-p1.z();
 	float m;
-	lop(i,0,segments+1){
+	lop(i,0,segments){
 		m=i/(float)segments;
 		res[i].x()=p1.x()+xx*m;
 		res[i].y()=p1.y()+yy*m;
@@ -872,8 +872,6 @@ struct osgdr{
 		float precision=1;
 		int sz=ve.size(); 
 		vfloat angles(sz);
-		lop(i,0,ve.size())
-			angles[i]=ve[i]->angle;
 		sz+=1; ///eixo z, depois implementar o x e o y
 		// vec3 axisb=*axisbegin;
 		#define cdist distance_two_points(&topoint,axisendik)
@@ -886,12 +884,11 @@ struct osgdr{
 		float ld=cdist;
 		vfloat cdir(sz);
 		lop(i,0,sz)cdir[i]=precision;  //aqui o z tem a mesma precisao k a rotaçao
-		// cdir[sz-1]=-20;
 		for(int wi=0;wi<1000;wi++){
-			for(int vi=sz-2;vi>=2;vi--){ //-2 é o z //o ultimo n tem angulo
+			for(int vi=sz-2;vi>=0;vi--){ //-2 é o z //o ultimo n tem angulo
 				if(vi<sz-1)if( ve[vi]->angleik >  ve[vi]->anglemax || ve[vi]->angleik <  ve[vi]->anglemin ){ 
 					cdir[vi]*=-1;
-					ve[vi]->rotateik(cdir[vi]*1);
+					ve[vi]->rotateik(cdir[vi]*50);
 				}
 				ve[vi]->rotateik(cdir[vi]);
 				if(ld<=cdist){
@@ -911,7 +908,6 @@ struct osgdr{
 			}  
 			
 			ld=cdist;
-			cot(ld);
 			// if(wi%100==0) cot(ld);
 			// cot(cdir);
 			// cot(angles);
@@ -1200,28 +1196,26 @@ void loadstl(Group* group){
 void posa(vfloat p, vec3 topoint=vec3(0,0,0),int speedtype=0, float x=0, float y=0, float z=1000){
 	// int sz=p.size();
 	// posapool.push_back(p);
-	// cot("P");
-	posa_erase_mtx.lock();
+	cot("P");
 	pool.push_back(posv{p,topoint,0,0,z,0});
-	posa_erase_mtx.unlock();
 	// posa_erase_mtx.unlock();
 	// cot(posapool.size());
 	// if(posapool.size()>1)return ;
-	// cot(pool.size());
+	cot(pool.size());
 	// cot(posa_counter);
 	if(pool.size()>1)return ;
 	std::thread thm([](float z ){
 		while(pool.size()!=0){ 
 			posa_mtx.lock(); 
 			
-	posa_erase_mtx.lock();
+	// posa_erase_mtx.lock();
 			posv* pov=&pool[0];
-	posa_erase_mtx.unlock();
+	// posa_erase_mtx.unlock();
 	
 			if(pov->cancel){ 
-				posa_erase_mtx.lock();
+				// posa_erase_mtx.lock();
 				pool.erase(pool.begin()); 
-				posa_erase_mtx.unlock();
+				// posa_erase_mtx.unlock();
 				posa_mtx.unlock();
 				continue;
 			}
@@ -1232,59 +1226,41 @@ void posa(vfloat p, vec3 topoint=vec3(0,0,0),int speedtype=0, float x=0, float y
 			// pov->x=pool[0].x;
 			// pov->y=pool[0].y;
 			// pov->z=pool[0].z;
-			vector<vec3> linearpov;
-			vector<posv> linposv;
 			z=pov->z;
 			cout<<"MOVE START"<<endl;
 			//here can be more complete with all axes topoint 0, we assume robot arm never goes 0,0,0
 			if(pov->topoint.x()!=0){ 
-				cout<<"FROM POINT "<<*ve[3]->axisend<<endl;
-				cout<<"TO POINT "<<pov->topoint<<endl;
+				cout<<"TO POINT"<<pov->topoint<<endl;
 				// cot(pov->topoint);
-				// linearpov=segments_3d(*ve[3]->axisend  , pov->topoint);
-				// linposv=vector<posv>(linearpov.size());
-				// lop(i,0,linearpov.size())cot(linearpov[i])
-				// lop(i,0,linearpov.size()){
-					// posv pv=ve[3]->posik(linearpov[i]);
-					// cot(pv.p);
-					// cot(pv.z);
-					// linposv[i]=pv;
-				// }
 				posv pv=ve[3]->posik(pov->topoint);
 				pov->p=pv.p;
+				
 				z=pv.z;
 				
 				// sz=pov->p.size();
 			}
 			
-			posa_counter_mtx.lock();
 			pov->posa_counter=pov->p.size(); 
-			posa_counter_mtx.unlock();
 			// cot(pov->posa_counter);
 			// cot(*ve[3]->axisend); //aparece valor anterior ao movimento 
-			// cot(pov->p);
+			cot(pov->p);
+			lop(i,0,pov->p.size()){ 
+				float newangle= pov->p[i];
+  				if(newangle>=999){pov->posa_counter--; continue;}
+				ve[i]->rotatetoposition(newangle,pov); 
+	// cot(pool.size()); 
+			}	
 			
-			
-			
-				lop(i,0,pov->p.size()){ 
-					float newangle= pov->p[i];
-					if(newangle>=999){pov->posa_counter--; continue;}
-					ve[i]->rotatetoposition(newangle,pov); 
-		// cot(pool.size()); 
-				}	
-				
-				if(z<1000){
-					// cout<<"MOVZ "<<z<<endl;
-				// cot(pov->posa_counter);
-					pov->posa_counter+=1;
-					movetoposz(z,pov);
-				// cot(z);
-				}
+			if(z<1000){
+				// cout<<"MOVZ "<<z<<endl;
+			// cot(pov->posa_counter);
+				pov->posa_counter+=1;
+				movetoposz(z,pov);
+			// cot(z);
+			}
 			while(pov->posa_counter>0){
-				cot(pool.size());
-				cot(pov->p);
-				cot(pov->posa_counter);
-				sleepms(1000);
+				// cot(pov->posa_counter);
+				sleepms(100);
 			} 
 			// cot(*ve[3]->axisend);
 			// delete pov;
@@ -1538,7 +1514,7 @@ int cancel_all(lua_State* L){
 	return 1;
 }
 int posa(lua_State* L){
-	// cot(lua_gettop(L));
+	cot(lua_gettop(L));
 	int sz=lua_gettop(L); 
 	vfloat p(sz);
 	lop(i,0,sz){  
@@ -1581,33 +1557,16 @@ int posaik(lua_State* L){
 	
 	return 1;
 }
-void luaL_loadstring_arg(string str,vstring args){
-	lua_State* L=lua_init();
-	cot(str)
-	cot(args[0]);
-	luaL_loadstring(L, str.c_str() );
-	lua_pcall(L, 0, 0, 0);
-}
-int func(lua_State* L){ 
+int func(lua_State* L){
 	int id=lua_tonumber(L,1);
 	sqlite3_stmt* st;
     sqlite3_prepare_v2(sql3, rprintf("select run from tabRobot where id='%d'",id),-1, &st, NULL);
 	cot(id);
 	while(sqlite3_step(st)== SQLITE_ROW){ 
 	cot(sqlite3_column_text(st,0));
-		int sz=lua_gettop(L)-1; 
-		cot(sz);
-		vstring p(sz);
-		lop(i,0,sz){  
-			p[i]=lua_tostring (L,i+1+1);
-			cot(p[i]);
-		}
-		// string f=lua_tostring (L,1+1);
-		// cot(f);
-		luaL_loadstring_arg((const char*)sqlite3_column_text(st,0) , p);
-		// lua_State* L=lua_init();
-		// luaL_loadstring(L, (const char*)sqlite3_column_text(st,0) );
-		// lua_pcall(L, 0, 0, 0);		
+		lua_State* L=lua_init();
+		luaL_loadstring(L, (const char*)sqlite3_column_text(st,0) );
+		lua_pcall(L, 0, 0, 0);		
 	} 
 	sqlite3_finalize(st); 	
 	return 1;
