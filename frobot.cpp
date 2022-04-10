@@ -64,7 +64,7 @@ extern "C" {
 #include "timef.hpp"
 #include "arrayf.hpp"
 #include "stringf.hpp" 
-
+#define cot ;
 
 struct flocvs;
 flocvs* flocv;
@@ -911,7 +911,7 @@ struct osgdr{
 			}  
 			
 			ld=cdist;
-			cot(ld);
+			// cot(ld);
 			// if(wi%100==0) cot(ld);
 			// cot(cdir);
 			// cot(angles);
@@ -1580,13 +1580,18 @@ int posaik(lua_State* L){
 	
 	
 	return 1;
-}
-void luaL_loadstring_arg(string str,vstring args){
+} 
+void luaL_loadstring_arg( string str,vstring args){
 	lua_State* L=lua_init();
-	cot(str)
-	cot(args[0]);
+	cot1(str)
+	//cot(args[0]);
+	
+	if(args.size()>0){
+		lua_pushnumber(L,atof(args[0].c_str()));	// lua_pushstring(L, "nick");
+		lua_setglobal(L, "z");  
+	}
 	luaL_loadstring(L, str.c_str() );
-	lua_pcall(L, 0, 0, 0);
+	lua_pcall(L, 0, 0, 0); 
 }
 int func(lua_State* L){ 
 	int id=lua_tonumber(L,1);
@@ -1595,8 +1600,9 @@ int func(lua_State* L){
 	cot(id);
 	while(sqlite3_step(st)== SQLITE_ROW){ 
 	cot(sqlite3_column_text(st,0));
+		// lua_State* L=lua_init();
 		int sz=lua_gettop(L)-1; 
-		cot(sz);
+		cot1(sz);
 		vstring p(sz);
 		lop(i,0,sz){  
 			p[i]=lua_tostring (L,i+1+1);
@@ -1604,6 +1610,7 @@ int func(lua_State* L){
 		}
 		// string f=lua_tostring (L,1+1);
 		// cot(f);
+		cot((const char*)sqlite3_column_text(st,0));
 		luaL_loadstring_arg((const char*)sqlite3_column_text(st,0) , p);
 		// lua_State* L=lua_init();
 		// luaL_loadstring(L, (const char*)sqlite3_column_text(st,0) );
@@ -1914,7 +1921,12 @@ void input_callback(Fl_Widget *, void* v){
 		fill_input(idx+0,1);
 		flscroll->scroll_to(0,yp);
 	}else{//update
-        sqlite3_exec(sql3, rprintf("update tabRobot set time='%s',desc='%s',run='%s' where id='%s'",flml_time[vo]->value(),flml_desc[vo]->value(),flml_run[vo]->texto->text(),flml_id[vo]->value()   ) ,NULL,NULL,NULL);
+	 
+	   auto t = std::time(nullptr);
+		auto tm = *std::localtime(&t);
+		stringstream tms;
+		tms<<std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        sqlite3_exec(sql3, rprintf("update tabRobot set time='%s',desc='%s',run='%s', dateu='%s' where id='%s'",flml_time[vo]->value(),flml_desc[vo]->value(),flml_run[vo]->texto->text(),tms.str().c_str(),flml_id[vo]->value()   ) ,NULL,NULL,NULL);
 	
 		
 	}
