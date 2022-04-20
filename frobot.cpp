@@ -1,7 +1,7 @@
 // http://ahux.narod.ru/olderfiles/1/OSG3_Cookbook.pdf https://titanwolf.org/Network/Articles/Article?AID=306e6b2e-3e45-4cc2-8f86-3e674ff557c3#gsc.tab=0
 //math collision detection two cubes https://gamedev.stackexchange.com/questions/60505/how-to-check-for-cube-collisions
 
-#ifndef _WIN32
+#ifdef _WIN32
 #include <windows.h>
 // Use discrete GPU by default.
 extern "C" {
@@ -533,12 +533,13 @@ typedef osg::Vec3f vec3;
 bool posa_debug=0;
 bool dbg_force=0; 
 vvfloat posapool;
-struct posv{ vfloat p; vec3 topoint; float x; float y; float z; int posa_counter=0; bool cancel=0; };
-vector<posv> pool;
+struct posv{ vfloat p; vec3 topoint; float x; float y; float z; int posa_counter=0; bool cancel=0; int funcn=0; vbool lock_angle={}; };
+vector<posv*> pool;
 std::mutex posa_mtx;
 mutex posa_counter_mtx;
-mutex posa_erase_mtx;
-				
+mutex posa_erase_mtx; 
+float pressuref=2;
+vector<vec3> pressure_at;
 
 float distance_two_points(vec3* point1,vec3* point2){
 	// cot(*point2);
@@ -674,7 +675,14 @@ struct osgdr{
 			// rotate( nangle);
 			if(nangle>0){
 				float dir=1*precision;
-				for(;;){
+				for(;;){			
+					if(pressuref>2){
+						cot1("W")
+						pov->cancel=1;
+						pressure_at.push_back(*ve[4]->axisend);
+						cot1(pressure_at.back());
+					}
+					if(pov->cancel==1)break;
 					if(moving==0)break;
 					if(angle>anglemax)break;
 					if(nangle<=0.1)break;
@@ -864,7 +872,8 @@ struct osgdr{
 	}; 
 
 	//returns angles to given point
-	posv posik(vec3 topoint,float x=0,float y=0,float z=1000){
+	// posv posik(vec3 topoint,float x=0,float y=0,float z=1000){
+	posv posik(vec3 topoint, vbool lock_angle={}){
 		copy_points_k();
 		// dbg_force=1;
 		// dbg_pos();
@@ -888,7 +897,9 @@ struct osgdr{
 		lop(i,0,sz)cdir[i]=precision;  //aqui o z tem a mesma precisao k a rotaçao
 		// cdir[sz-1]=-20;
 		for(int wi=0;wi<1000;wi++){
-			for(int vi=sz-2;vi>=2;vi--){ //-2 é o z //o ultimo n tem angulo
+			for(int vi=sz-2;vi>=0;vi--){ //-2 é o z //o ultimo n tem angulo
+			// cot1(lock_angle[vi]);
+				if(lock_angle[vi])continue;
 				if(vi<sz-1)if( ve[vi]->angleik >  ve[vi]->anglemax || ve[vi]->angleik <  ve[vi]->anglemin ){ 
 					cdir[vi]*=-1;
 					ve[vi]->rotateik(cdir[vi]*1);
@@ -956,7 +967,7 @@ void dbg_pos(){
 			cout<<"idx"<<i<<"\t"<<(int)(ve[i]->axisbegin->x())<<"\t"<<(int)(ve[i]->axisbegin->y())<<"\t"<<(int)(ve[i]->axisbegin->z())<<"\t"<<(int)(ve[i]->axisend->x())<<"\t"<<(int)(ve[i]->axisend->y())<<"\t"<<(int)(ve[i]->axisend->z())<<"\t"<<(int)(ve[i]->axisbeginik->x())<<"\t"<<(int)(ve[i]->axisbeginik->y())<<"\t"<<(int)(ve[i]->axisbeginik->z())<<"\t"<<(int)(ve[i]->axisendik->x())<<"\t"<<(int)(ve[i]->axisendik->y())<<"\t"<<(int)(ve[i]->axisendik->z())<<endl;;
 		} 
 		cout<<"Z "<<ve[0]->axisbegin->z()<<endl;
-		cout<<"posaik( ";   cout<<std::round(ve[3]->axisend->x())<<" , "<<std::round(ve[3]->axisend->y())<<" , "<<std::round(ve[3]->axisend->z())<<" )"; cout<<endl;
+		cout<<"posaik( ";   cout<<std::round(ve[4]->axisend->x())<<" , "<<std::round(ve[4]->axisend->y())<<" , "<<std::round(ve[4]->axisend->z())<<" )"; cout<<endl;
 }
 //tem de copiar tambem o angulo
 void copy_points_k(){ 
@@ -1011,6 +1022,9 @@ void movetoposz(float z, posv* pov){
 		if(z<=currz){dir=-1;   }
 		for(;;){
 			mtxlock(0);
+			if(pressuref>2){
+				pov->cancel=1;
+			}
 			// cot(dir);
 			// cot(newz);
 			if(pov->cancel){mtxunlock(0);break;}
@@ -1031,10 +1045,10 @@ void movetoposz(float z, posv* pov){
 				// cot("PC");
 		}
 				
-				// posa_counter_mtx.lock();
+				posa_counter_mtx.lock();
 				// cot(pov->posa_counter);
 				pov->posa_counter--;
-				// posa_counter_mtx.unlock();
+				posa_counter_mtx.unlock();
 		// dbg_pos();
 		
 	},z,pov);
@@ -1092,6 +1106,7 @@ void geraeixos(Group* group){
 	ve.resize(idx+1);
 	ve[idx]=new osgdr(group); 
 	ve[idx]->nodesstr.push_back("stl/robot_armj2.stl"); 
+	ve[idx]->nodesstr.push_back("stl/robot_servospt70_2.stl"); 
 	ve[idx]->axis=vec3(0,1,0); 
 	ve[idx]->anglemin=0;
 	ve[idx]->anglemax=90;
@@ -1101,12 +1116,22 @@ void geraeixos(Group* group){
 	idx=3;
 	ve.resize(idx+1);
 	ve[idx]=new osgdr(group); 
-	ve[idx]->nodesstr.push_back("stl/robot_armj2_1.stl"); 
+	ve[idx]->nodesstr.push_back("stl/robot_armj3.stl"); 
 	ve[idx]->axis=vec3(0,1,0);
 	ve[idx]->anglemin=0;
 	ve[idx]->anglemax=170;
 	ve[idx]->offset=offset;
-	ve[idx]->newdr(vec3(-300,281,-42.19),vec3(-600,281,-42.19));
+	ve[idx]->newdr(vec3(-325.77,281,-42.19),vec3(-400,281,-42.19));
+	
+	idx=4;
+	ve.resize(idx+1);
+	ve[idx]=new osgdr(group); 
+	ve[idx]->nodesstr.push_back("stl/robot_armj4.stl"); 
+	ve[idx]->axis=vec3(1,0,0);
+	ve[idx]->anglemin=0;
+	ve[idx]->anglemax=170;
+	ve[idx]->offset=offset;
+	ve[idx]->newdr(vec3(-459.61,231,-42.19),vec3(-600,231,-42.19));
  
 	goffset(offset);
 	
@@ -1192,34 +1217,43 @@ void loadstl(Group* group){
 	
 };
 
-
+int funcid=0;
 //topoint faz override ao p
 //vai ao posapool p=angles
 //1000 é = ao anterior no p e  no z, x=0 e y=0 é =
-// o topoint faz override ao p
-void posa(vfloat p, vec3 topoint=vec3(0,0,0),int speedtype=0, float x=0, float y=0, float z=1000){
+// o topoint faz override ao p e lock_angle only works with posik
+// posa({},{},0,0,0,0,0,{});
+void posa(vfloat p, vec3 topoint=vec3(0,0,0), float x=0, float y=0, float z=1000,int speedtype=0,int funcn=0, vbool lock_angle={}){
 	// int sz=p.size();
 	// posapool.push_back(p);
 	// cot("P");
+	// std::thread th([=](float z ){
+	// posa_counter_mtx.lock();
+	// cot1(z);
 	posa_erase_mtx.lock();
-	pool.push_back(posv{p,topoint,0,0,z,0});
-	posa_erase_mtx.unlock();
+	pool.push_back( new posv{p,topoint,0,0,z,0,0,funcn,lock_angle});
+	posa_erase_mtx.unlock(); 
+	// posa_counter_mtx.unlock();
+	// },z);
+	// th.detach( );
 	// posa_erase_mtx.unlock();
 	// cot(posapool.size());
 	// if(posapool.size()>1)return ;
-	// cot(pool.size());
+	cot1(pool.size());
 	// cot(posa_counter);
 	if(pool.size()>1)return ;
 	std::thread thm([](float z ){
 		while(pool.size()!=0){ 
-			posa_mtx.lock(); 
-			
-	posa_erase_mtx.lock();
-			posv* pov=&pool[0];
-	posa_erase_mtx.unlock();
-	
+			posa_mtx.lock();  
+			posa_erase_mtx.lock();
+			posv* pov=pool[0];
+			posa_erase_mtx.unlock();
+			if(pressuref>2){
+				pov->cancel=1;
+			}
 			if(pov->cancel){ 
 				posa_erase_mtx.lock();
+				delete pov;
 				pool.erase(pool.begin()); 
 				posa_erase_mtx.unlock();
 				posa_mtx.unlock();
@@ -1235,10 +1269,12 @@ void posa(vfloat p, vec3 topoint=vec3(0,0,0),int speedtype=0, float x=0, float y
 			vector<vec3> linearpov;
 			vector<posv> linposv;
 			z=pov->z;
+			cot1(z);
 			cout<<"MOVE START"<<endl;
+			cout<<"FUNCID "<<pov->funcn<<endl;
 			//here can be more complete with all axes topoint 0, we assume robot arm never goes 0,0,0
 			if(pov->topoint.x()!=0){ 
-				cout<<"FROM POINT "<<*ve[3]->axisend<<endl;
+				cout<<"FROM POINT "<<*ve[4]->axisend<<endl;
 				cout<<"TO POINT "<<pov->topoint<<endl;
 				// cot(pov->topoint);
 				// linearpov=segments_3d(*ve[3]->axisend  , pov->topoint);
@@ -1250,7 +1286,7 @@ void posa(vfloat p, vec3 topoint=vec3(0,0,0),int speedtype=0, float x=0, float y
 					// cot(pv.z);
 					// linposv[i]=pv;
 				// }
-				posv pv=ve[3]->posik(pov->topoint);
+				posv pv=ve[4]->posik(pov->topoint,pov->lock_angle);
 				pov->p=pv.p;
 				z=pv.z;
 				
@@ -1283,12 +1319,13 @@ void posa(vfloat p, vec3 topoint=vec3(0,0,0),int speedtype=0, float x=0, float y
 			while(pov->posa_counter>0){
 				cot(pool.size());
 				cot(pov->p);
-				cot(pov->posa_counter);
+				cot1(pov->posa_counter);
 				sleepms(1000);
 			} 
 			// cot(*ve[3]->axisend);
 			// delete pov;
 			posa_erase_mtx.lock();
+			delete pov;
 			pool.erase(pool.begin());
 			// delete pov;
 			posa_erase_mtx.unlock();
@@ -1303,9 +1340,14 @@ void posi(int index,float angle){
 	posa_erase_mtx.lock();
 	// cot(pool.back().p);
 	lop(i,0,ve.size())angles[i]=ve[i]->angle;
+	// for(int j=pool.size()-1;j>=0;j--)
+		// if(pool[j].p.size()>0){
+			// lop(i,0,pool[j].p.size())angles[i]=pool[j].p[i]; 
+			// break;
+		// }	
 	for(int j=pool.size()-1;j>=0;j--)
-		if(pool[j].p.size()>0){
-			lop(i,0,pool[j].p.size())angles[i]=pool[j].p[i]; 
+		if(pool[j]->p.size()>0){
+			lop(i,0,pool[j]->p.size())angles[i]=pool[j]->p[i]; 
 			break;
 		}
 	posa_erase_mtx.unlock();
@@ -1318,7 +1360,7 @@ void posi(int index,float angle){
 	
 }
 
-void posik(vec3 vv){
+void posik(vec3 vv, vbool lock_angle){
 	// copy_points_k();
 	// dbg_force=1;
 	// dbg_pos();
@@ -1327,7 +1369,8 @@ void posik(vec3 vv){
 	
 	// vfloat angles=ve[3]->posik(vv);
 	// posa(angles);
-	posa({},vv);
+	// posa({},vv);
+	posa({},vv,0,0,0,0,0,lock_angle);
 	return;
 	// lop(i,0,ve.size()){
 		// ve[i]->rotate_posk(angles[i]);
@@ -1337,7 +1380,7 @@ void posik(vec3 vv){
 }
 
 void movz(float z){
-	posa({},{},0,0,0,z);
+	posa({},{},0,0,z);
 }
 //Rotas
 #if 1
@@ -1499,6 +1542,7 @@ void fann_calc(){
 #include <lua5.3/lua.hpp> 
 #endif
 lua_State* lua_init();
+void lua_str(string str);
 int ltable(lua_State* L){ 
 	int t = lua_type(L, 1); 
 	if(t == LUA_TTABLE) {
@@ -1520,10 +1564,17 @@ int add(lua_State* L){
 	lua_pushnumber(L,n1+n2);
 	return 1;
 }
+//not working
+int pressure(lua_State* L){  
+	lua_pushnumber(L,pressuref);
+	// cot1(pressuref);
+	return 1;
+}
 int movz(lua_State* L){
 	float n1=lua_tonumber(L,1);
+	cot1(n1);
 	// movetoposz( n1 );;
-	posa({},{},0,0,0,n1);
+	posa({},{},0,0,n1);
 	return 1;
 }
 int posadebug(lua_State* L){
@@ -1533,7 +1584,7 @@ int posadebug(lua_State* L){
 int cancel_all(lua_State* L){
 	cot(0);
 	lop(i,0,pool.size()){
-		pool[i].cancel=1;
+		pool[i]->cancel=1;
 	}
 	return 1;
 }
@@ -1547,7 +1598,8 @@ int posa(lua_State* L){
 		else
 			p[i]=lua_tonumber(L,i+1 );
 	}
-	posa(p);
+	// posa(p );
+	posa(p,{},0,0,1000,0,funcid);
 	return 1;
 }
 int posi(lua_State* L){
@@ -1573,28 +1625,48 @@ int pik2(lua_State* L){
 int posaik(lua_State* L){
 	// cot(lua_gettop(L));
 	int sz=lua_gettop(L); 
-	vfloat p(sz);
-	lop(i,0,sz)p[i]=lua_tonumber(L,i+1);
-
-	posik(vec3(p[0],p[1],p[2]));
+	vfloat p(3);
+	// lop(i,0,3)cot1(lua_tonumber(L,i+1));
+	lop(i,0,3)p[i]=lua_tonumber(L,i+1);
+	vbool lock_angle(ve.size());
+	lop(i,3,sz)lock_angle[i-3]=lua_tonumber(L,i+1);
+	
+// cot1(lock_angle);pausa
+	posik(vec3(p[0],p[1],p[2]),lock_angle);
 	
 	
 	return 1;
 } 
+mutex luam;
 void luaL_loadstring_arg( string str,vstring args){
+	// luam.lock();
 	lua_State* L=lua_init();
-	cot1(str)
+	// cot1(str)
 	//cot(args[0]);
 	
 	if(args.size()>0){
 		lua_pushnumber(L,atof(args[0].c_str()));	// lua_pushstring(L, "nick");
 		lua_setglobal(L, "z");  
 	}
-	luaL_loadstring(L, str.c_str() );
-	lua_pcall(L, 0, 0, 0); 
+	if(args.size()>1){
+		lua_pushstring(L,args[1].c_str());
+		lua_setglobal(L, "js");  
+	} 
+	ifstream input( "frobot.lua" );
+	stringstream str1;
+	str1<<input.rdbuf();
+	str=str1.str()+"\n"+str+"\n::exit::";  
+	luaL_loadstring(L, str.c_str());  
+	if (lua_pcall(L,0,0,0)!=LUA_OK) fprintf(stderr,"%s\n", lua_tostring(L,-1) );
+	// luam.unlock();
 }
+mutex funclock;
 int func(lua_State* L){ 
 	int id=lua_tonumber(L,1);
+	funclock.lock();
+	funcid=id;
+	funclock.unlock();
+	// cot1(funcid)
 	sqlite3_stmt* st;
     sqlite3_prepare_v2(sql3, rprintf("select run from tabRobot where id='%d'",id),-1, &st, NULL);
 	cot(id);
@@ -1602,7 +1674,7 @@ int func(lua_State* L){
 	cot(sqlite3_column_text(st,0));
 		// lua_State* L=lua_init();
 		int sz=lua_gettop(L)-1; 
-		cot1(sz);
+		// cot1(sz);
 		vstring p(sz);
 		lop(i,0,sz){  
 			p[i]=lua_tostring (L,i+1+1);
@@ -1610,7 +1682,7 @@ int func(lua_State* L){
 		}
 		// string f=lua_tostring (L,1+1);
 		// cot(f);
-		cot((const char*)sqlite3_column_text(st,0));
+		// cot((const char*)sqlite3_column_text(st,0));
 		luaL_loadstring_arg((const char*)sqlite3_column_text(st,0) , p);
 		// lua_State* L=lua_init();
 		// luaL_loadstring(L, (const char*)sqlite3_column_text(st,0) );
@@ -1648,6 +1720,9 @@ lua_State* lua_init(){
 	lua_pushcfunction(L,  add );
 	lua_setglobal(L,"add");
 	
+	lua_pushcfunction(L,  pressure );
+	lua_setglobal(L,"pressure");
+	
 	lua_pushcfunction(L,  movz );
 	lua_setglobal(L,"movz");
 	
@@ -1684,12 +1759,11 @@ void lua_str(string str){
 	ifstream input( "frobot.lua" );
 	stringstream str1;
 	str1<<input.rdbuf();
-	str=str1.str()+"\n"+str;
-	// cot(str);
+	str=str1.str()+"\n"+str+"\n::exit::"; 
 	lua_State* L=lua_init();
 	luaL_loadstring(L, str.c_str());
-	lua_pcall(L, 0, 0, 0);
-	
+	// lua_pcall(L, 0, 0, 0);
+	if (lua_pcall(L,0,0,0)!=LUA_OK) fprintf(stderr,"%s\n", lua_tostring(L,-1) );
 	
 	lua_close(L);
 }
@@ -1764,8 +1838,11 @@ struct FlEditor:Fl_Text_Editor{
 		// if(e==FL_KEYDOWN &&  Fl::event_state() ==FL_CTRL && Fl::event_key()==102) find_cb();
 		if(e==FL_KEYDOWN){
 			if(tipo==0)save();
-			//altgr
-			if(!Fl::event_shift()  && (Fl::event_key()==65027 || Fl::event_key()==65514)){//altgr
+			//altgr .
+			if(Fl::event_alt () && Fl::event_key()==46){
+			// if(!Fl::event_shift()  && (Fl::event_key()==65027 || Fl::event_key()==65514)){//altgr
+				// cot1("0");
+				// cot1(Fl::event_key());
 				int new_pos = insert_position();
 				int line = texto->count_lines(0, new_pos);
 				// int ls = texto->line_start(new_pos);
@@ -1773,9 +1850,11 @@ struct FlEditor:Fl_Text_Editor{
 				// cot(ls);
 				fparse_str(texto->text(),line);
 				kf_down(0,this);
-			}  
-			if(Fl::event_shift()  && (Fl::event_key()==65027 || Fl::event_key()==65514) ){
-				//run all text
+			}
+			//altgr ,
+			if(Fl::event_alt () && Fl::event_key()==44){  
+			// if(Fl::event_shift()  && (Fl::event_key()==65027 || Fl::event_key()==65514) ){
+				// run all text
 				lua_str(texto->text());
 			}
 			// cot(Fl::event_key());
@@ -1921,8 +2000,7 @@ void input_callback(Fl_Widget *, void* v){
 		fill_input(idx+0,1);
 		flscroll->scroll_to(0,yp);
 	}else{//update
-	 
-	   auto t = std::time(nullptr);
+	    auto t = std::time(nullptr);
 		auto tm = *std::localtime(&t);
 		stringstream tms;
 		tms<<std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
@@ -1933,7 +2011,7 @@ void input_callback(Fl_Widget *, void* v){
 }
 void fill_input(int idx,bool newr){	
 	int hh=18;
-	int hh1=90;
+	int hh1=250;
 	flml_id.push_back(new Fl_Input(0,idx*hh1,30,hh));
 	flml_id.back()->type(FL_INPUT_READONLY);
 	if(newr==0)flml_id.back()->value( (const char*)sqlite3_column_text(st,0) );
@@ -1987,7 +2065,35 @@ void choice_cb(Fl_Widget *w, void *userdata) {
 	string txt=(search_in->input()->value());
 	// int exit = 0;
     // exit = sqlite3_open("frobot.sqlite", &sql3);
-	string sql="select * from tabRobot where desc like '%"+txt+"%'";  
+	string sql="select * from tabRobot where desc like '%"+txt+"%' order by dateu desc";  
+    sqlite3_prepare_v2(sql3, sql.c_str(),-1, &st, NULL);
+	idx=0;
+	while(sqlite3_step(st)== SQLITE_ROW){  
+		fill_input(idx);
+		idx++;
+	}
+	fill_input(idx,1); //new
+	threadDetach([]{sleepms(50);cot(flscroll->yposition ());flscroll->scroll_to(0,0);flscroll->redraw(); flscroll->damage(1);}); 
+	flscroll->scroll_to (0, 0);
+	flscroll->redraw();
+	sqlite3_finalize(st);
+}
+Fl_Input_Choice* search_numfunc;
+void choice_cbnum(Fl_Widget *w, void *userdata) {
+	lop(i,0,flml_id.size()){
+		Fl::delete_widget (flml_id[i]);
+		Fl::delete_widget (flml_time[i]);
+		Fl::delete_widget (flml_desc[i]);
+		Fl::delete_widget (flml_run[i]);
+	}
+	flml_id.clear();
+	flml_time.clear();
+	flml_run.clear();
+	flml_desc.clear();
+	string txt=(search_numfunc->input()->value());
+	// int exit = 0;
+    // exit = sqlite3_open("frobot.sqlite", &sql3);
+	string sql="select * from tabRobot where id like '%"+txt+"%' order by dateu desc";  
     sqlite3_prepare_v2(sql3, sql.c_str(),-1, &st, NULL);
 	idx=0;
 	while(sqlite3_step(st)== SQLITE_ROW){  
@@ -2021,7 +2127,7 @@ void sql3_init(){
 	});	 		 
 	
 	// Fl_Button* in=new Fl_Button(0,120,100,30,"Test");
-	search_in=new Fl_Input_Choice(0,120,160,30,"Test");
+	search_in=new Fl_Input_Choice(30,120,130,30,"");
     search_in->callback(choice_cb, 0);
 	// in->align(FL_ALIGN_LEFT);
     search_in->menubutton()->add("one");
@@ -2031,12 +2137,16 @@ void sql3_init(){
     // Fl_Button onoff(0,150,200,28,"Activate/Deactivate");
     // onoff.callback(buttcb, (void*)&in);
 	
+	
+	search_numfunc=new Fl_Input_Choice(0,120,30,30,"");
+    search_numfunc->callback(choice_cbnum, 0);
+	
 	// return;
 	flscroll=new Fl_Scroll(0,150,160,480-150); 
 	
     int exit = 0;
     exit = sqlite3_open("frobot.sqlite", &sql3);
-	string sql="select * from tabRobot"; 
+	string sql="select * from tabRobot order by dateu desc"; 
 	// resize_flscroll(sql);
     sqlite3_prepare_v2(sql3, sql.c_str(),-1, &st, NULL);
 	idx=0;
@@ -2079,7 +2189,8 @@ void time_f(){
 	posa_mtx.lock();
 		lua_State* L=lua_init();
 		luaL_loadstring(L, (const char*)sqlite3_column_text(st,1) );
-		lua_pcall(L, 0, 0, 0);
+		// lua_pcall(L, 0, 0, 0);
+		if (lua_pcall(L,0,0,0)!=LUA_OK) fprintf(stderr,"%s\n", lua_tostring(L,-1) );
 	posa_mtx.unlock();
 	} 
 	sqlite3_finalize(st);
@@ -2273,8 +2384,12 @@ int main(){
 				vix* vv=(vix*)v; 
 				// cot(vv->index);
 				// cot(vv->angle);
-				posv p;
-				ve[vv->index]->rotatetoposition(vv->angle,&p);
+				posv* p=new posv;
+				ve[vv->index]->rotatetoposition(vv->angle,p);
+				// threadDetach([&]{
+					// sleepms(10000);
+					// delete p;
+				// });
 				// ve[vv->index]->rotate_pos(vv->angle);
 			},(void*)vsend);
 			btn+=10;
@@ -2401,6 +2516,7 @@ int main(){
 	
 	time_f_btn->callback([](Fl_Widget *, void* v){ 	 
         time_f();	
+		pressuref=4;
 	});
 	
 	

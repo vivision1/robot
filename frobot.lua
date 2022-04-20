@@ -1,4 +1,10 @@
+require "json"
+a=0
+b=0
+js="{}" 
+
 function test()
+	cancel_all() 
 	lampadas()
 	reset()
 	g2()
@@ -103,5 +109,3 @@ posaik(  1050,250, -450)
 posaik(  1050,150, -450)
 view( 610 , 348.5 , 2541.4 ,500 , 500 , 0 , 0 , 1 , 0 )
 end
-
-
