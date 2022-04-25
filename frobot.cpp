@@ -682,11 +682,11 @@ struct osgdr{
 						pov->cancel=1;
 						pressure_at.push_back(*ve[4]->axisend);
 						cot1(pressure_at.back());
-					}			
+					}	
+					if(pov->cancel==1)break;		
 					if(pov->pause){
 						while(pov->pause)sleepms(200);
 					}
-					if(pov->cancel==1)break;
 					if(moving==0)break;
 					if(angle>anglemax)break;
 					if(nangle<=0.1)break;
@@ -700,7 +700,11 @@ struct osgdr{
 			}
 			if(nangle<0){
 				float dir=-1*precision;
-				for(;;){
+				for(;;){					
+					if(pov->cancel==1)break;		
+					if(pov->pause){
+						while(pov->pause)sleepms(200);
+					}
 					if(moving==0)break;
 					if(angle<anglemin)break;
 					if(nangle>=-0.1)break;
@@ -716,6 +720,7 @@ struct osgdr{
 				pov->posa_counter--;
 				// cot(posa_counter);
 				posa_counter_mtx.unlock();
+				// dbg_pos();
 		},newangle,pov);
 		th.detach( ); 
 		
@@ -962,7 +967,7 @@ void dbg_pos(){
 	lop(i,0,ve.size()){
 		if(i>0 && i<=3)strm<<"idx"<<i<<"\t"<<(int)(ve[i]->axisbegin->x())<<",\t"<<(int)(ve[i]->axisbegin->y())<<",\t"<<(int)(ve[i]->axisbegin->z());
 		strm<<"<br>";
-		if(i==4)strm<<(int)(ve[i]->axisend->x())<<"\t"<<(int)(ve[i]->axisend->y())<<"\t"<<(int)(ve[i]->axisend->z())<<endl;;
+		if(i==4)strm<<"idxend"<<i<<"\t"<<(int)(ve[i]->axisend->x())<<"\t"<<(int)(ve[i]->axisend->y())<<"\t"<<(int)(ve[i]->axisend->z())<<endl;;
 	}
 	fldbg->value(strm.str().c_str());
 	
@@ -1047,10 +1052,10 @@ void movetoposz(float z, posv* pov){
 			}
 			// cot(dir);
 			// cot(newz);
+			if(pov->cancel){mtxunlock(0);break;}
 			if(pov->pause){
 				while(pov->pause)sleepms(200);
 			}
-			if(pov->cancel){mtxunlock(0);break;}
 			if(dir==1 && newz<=0){mtxunlock(0);break;}
 			if(dir==-1 && newz>=0){mtxunlock(0);break;}
 			if(dir==1)newz-=speed;else newz+=speed;
@@ -2351,6 +2356,7 @@ int main(){
 	time_input_btn=new Fl_Toggle_Button(90,  40, 30, 20,"hdbg");
 	Fl_Button* time_f_btn=new Fl_Button(120,  40, 30, 20,"Tdbg");
 	Fl_Button* btpause=new Fl_Button(0,  60, 30, 20,"pause");
+	Fl_Button* btnext=new Fl_Button(30,  60, 30, 20,"next");
 	
 
 	
@@ -2577,6 +2583,17 @@ int main(){
 			lop(i,0,pool.size())
 				pool[i]->pause=0;	
 	},btpause);
+	
+	btnext->callback([](Fl_Widget *, void* v){ 
+		Fl_Button* btnext=(Fl_Button*)v; 
+		if(pool.size()==0)return;
+		posa_erase_mtx.lock();
+		pool[0]->pause=0;
+		lop(i,1,pool.size())
+			pool[i]->pause=1;
+		posa_erase_mtx.unlock();
+				
+	},btnext);
 	
 	
 	
