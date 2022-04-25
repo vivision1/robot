@@ -958,9 +958,11 @@ Fl_Help_View* fldbg;
 stringstream strm;
 void dbg_pos(){
 	strm.str(std::string());
-	strm<<"\t"<<"axisbx\taxisby\taxisbz\t"<<"axisex\taxisey\taxisez\t"<<endl;
+	// strm<<"\t"<<"axisbx\taxisby\taxisbz\t"<<"axisex\taxisey\taxisez\t"<<endl;
 	lop(i,0,ve.size()){
-		strm<<"idx"<<i<<"\t"<<(int)(ve[i]->axisbegin->x())<<",\t"<<(int)(ve[i]->axisbegin->y())<<",\t"<<(int)(ve[i]->axisbegin->z())<<"\t"<<(int)(ve[i]->axisend->x())<<"\t"<<(int)(ve[i]->axisend->y())<<"\t"<<(int)(ve[i]->axisend->z())<<endl;;
+		if(i>0 && i<=3)strm<<"idx"<<i<<"\t"<<(int)(ve[i]->axisbegin->x())<<",\t"<<(int)(ve[i]->axisbegin->y())<<",\t"<<(int)(ve[i]->axisbegin->z());
+		strm<<"<br>";
+		if(i==4)strm<<(int)(ve[i]->axisend->x())<<"\t"<<(int)(ve[i]->axisend->y())<<"\t"<<(int)(ve[i]->axisend->z())<<endl;;
 	}
 	fldbg->value(strm.str().c_str());
 	
@@ -2387,7 +2389,7 @@ int main(){
 	osggl->setSceneData(group);
 	
 	
-	fldbg=new Fl_Help_View(800,420+20,300,60-20);
+	fldbg=new Fl_Help_View(800,420+10,300,60);
 	// fldbg->textcolor(FL_RED);
 	fldbg->textfont(5);
 	fldbg->textsize(14);
