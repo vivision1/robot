@@ -1,7 +1,9 @@
-require "json"
+local json = require "json"
 a=0
 b=0
-js="{}" 
+--js="{}" 
+
+
 
 function test()
 	cancel_all() 

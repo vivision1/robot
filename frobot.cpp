@@ -45,6 +45,7 @@ extern "C" {
 #include <Fl/Fl_Value_Slider.H>
 #include <FL/Fl_Toggle_Button.H>
 #include <FL/Fl_Double_Window.H>
+#include <FL/Fl_Help_View.H>
 // #include <FL/Fl_Browser.H>
 #include <FL/Fl_Button.H> 
 #include <FL/Fl_Choice.H>
@@ -533,7 +534,7 @@ typedef osg::Vec3f vec3;
 bool posa_debug=0;
 bool dbg_force=0; 
 vvfloat posapool;
-struct posv{ vfloat p; vec3 topoint; float x; float y; float z; int posa_counter=0; bool cancel=0; int funcn=0; vbool lock_angle={}; };
+struct posv{ vfloat p; vec3 topoint; float x; float y; float z; int posa_counter=0; bool cancel=0; int funcn=0; vbool lock_angle={};  bool pause=0;};
 vector<posv*> pool;
 std::mutex posa_mtx;
 mutex posa_counter_mtx;
@@ -681,6 +682,9 @@ struct osgdr{
 						pov->cancel=1;
 						pressure_at.push_back(*ve[4]->axisend);
 						cot1(pressure_at.back());
+					}			
+					if(pov->pause){
+						while(pov->pause)sleepms(200);
 					}
 					if(pov->cancel==1)break;
 					if(moving==0)break;
@@ -949,13 +953,27 @@ void arm_len_fill(){
 		cot(ve[i]->arm_len);
 	}
 }
+
+Fl_Help_View* fldbg;
+stringstream strm;
 void dbg_pos(){
+	strm.str(std::string());
+	strm<<"\t"<<"axisbx\taxisby\taxisbz\t"<<"axisex\taxisey\taxisez\t"<<endl;
+	lop(i,0,ve.size()){
+		strm<<"idx"<<i<<"\t"<<(int)(ve[i]->axisbegin->x())<<",\t"<<(int)(ve[i]->axisbegin->y())<<",\t"<<(int)(ve[i]->axisbegin->z())<<"\t"<<(int)(ve[i]->axisend->x())<<"\t"<<(int)(ve[i]->axisend->y())<<"\t"<<(int)(ve[i]->axisend->z())<<endl;;
+	}
+	fldbg->value(strm.str().c_str());
+	
+	
+	
 	if(!posa_debug && dbg_force==0) return;
 	dbg_force=0;
 	// arm_len_fill();
 	// lop(i,0,ve.size()) cout<<i<<" "<<ve[i]->angle<<"  ";cout<<endl; 
 	cout<<"posa: "; lop(i,0,ve.size()) cout<<i<<","<<ve[i]->angle<<"  ";cout<<endl;		
 	cout<<"posa( "; lop(i,0,ve.size()-1) cout<<ve[i]->angle<<" , "; cout<<ve.back()->angle<<" )"; cout<<endl;		
+	
+	
 	cout<<"\t"<<"axisbx\taxisby\taxisbz\t"<<"axisex\taxisey\taxisez\t"<<endl;
 	lop(i,0,ve.size()){
 		cout<<"idx"<<i<<"\t"<<(int)(ve[i]->axisbegin->x())<<"\t"<<(int)(ve[i]->axisbegin->y())<<"\t"<<(int)(ve[i]->axisbegin->z())<<"\t"<<(int)(ve[i]->axisend->x())<<"\t"<<(int)(ve[i]->axisend->y())<<"\t"<<(int)(ve[i]->axisend->z())<<endl;;
@@ -1027,6 +1045,9 @@ void movetoposz(float z, posv* pov){
 			}
 			// cot(dir);
 			// cot(newz);
+			if(pov->pause){
+				while(pov->pause)sleepms(200);
+			}
 			if(pov->cancel){mtxunlock(0);break;}
 			if(dir==1 && newz<=0){mtxunlock(0);break;}
 			if(dir==-1 && newz>=0){mtxunlock(0);break;}
@@ -1040,15 +1061,20 @@ void movetoposz(float z, posv* pov){
 				ve[i]->drw->set(GL_LINES,0, ve[i]->points->size());
 				ve[i]->geometry ->setPrimitiveSet(0,ve[i]->drw); 
 			}
+			// if((*ve[0]->axisbegin).z()>=0 && rotate_pos!=0){
+				// ve[0]->rotatetoposition(ve[0]->angle+90,pov);
+				// rotate_pos=1;
+			// }
+			dbg_pos();
 			mtxunlock(0);
 			sleepms(5);
 				// cot("PC");
 		}
 				
-				posa_counter_mtx.lock();
-				// cot(pov->posa_counter);
-				pov->posa_counter--;
-				posa_counter_mtx.unlock();
+		posa_counter_mtx.lock();
+		// cot(pov->posa_counter);
+		pov->posa_counter--;
+		posa_counter_mtx.unlock();
 		// dbg_pos();
 		
 	},z,pov);
@@ -1075,8 +1101,8 @@ void geraeixos(Group* group){
 	ve[idx]->nodesstr.push_back("stl/robot_balde.stl");
 	ve[idx]->nodesstr.push_back("stl/robot_servospt70.stl"); 
 	ve[idx]->axis=vec3(0,1,0);
-	ve[idx]->anglemax=190;
-	ve[idx]->anglemin=-130;
+	ve[idx]->anglemax=230;
+	ve[idx]->anglemin=-90;
 	ve[idx]->offset=offset;
 	ve[idx]->newdr(vec3(110,250,-20),vec3(110,250,200));
 		
@@ -1839,9 +1865,12 @@ struct FlEditor:Fl_Text_Editor{
 		if(e==FL_KEYDOWN){
 			if(tipo==0)save();
 			//altgr .
-			if(Fl::event_alt () && Fl::event_key()==46){
+			if(Fl::event_alt ())cot1("if(Fl::event_alt ()");
+			if(Fl::event_shift ())cot1("if(Fl::event_shift ()");
+			// if(Fl::event_alt () && Fl::event_key()==46){
+			if(Fl::event_alt () && Fl::event_key()==120){
 			// if(!Fl::event_shift()  && (Fl::event_key()==65027 || Fl::event_key()==65514)){//altgr
-				// cot1("0");
+				cot1("0");
 				// cot1(Fl::event_key());
 				int new_pos = insert_position();
 				int line = texto->count_lines(0, new_pos);
@@ -1852,12 +1881,13 @@ struct FlEditor:Fl_Text_Editor{
 				kf_down(0,this);
 			}
 			//altgr ,
-			if(Fl::event_alt () && Fl::event_key()==44){  
+			// if(Fl::event_alt () && Fl::event_key()==44){  
+			if(Fl::event_alt () && Fl::event_key()==122){  
 			// if(Fl::event_shift()  && (Fl::event_key()==65027 || Fl::event_key()==65514) ){
 				// run all text
 				lua_str(texto->text());
 			}
-			// cot(Fl::event_key());
+			cot1(Fl::event_key());
 		}
 		if(e==FL_PUSH ){
 			// cot(texto->selection_text()); 
@@ -2022,7 +2052,8 @@ void fill_input(int idx,bool newr){
 		flml_time.back()->value( str_time.c_str() );	
 	}
 	flml_time.back()->callback(input_callback,(void*)idx);
-	flml_desc.push_back(new Fl_Input(70,idx*hh1,50,hh));
+	flml_time.back()->textsize(12);;
+	flml_desc.push_back(new Fl_Input(70,idx*hh1,150,hh));
 	if(newr==0)flml_desc.back()->value( (const char*)sqlite3_column_text(st,2) );
 	flml_desc.back()->callback(input_callback,(void*)idx);
 	flml_run.push_back(new FlEditor(0,idx*hh1+hh,206,hh1-hh));
@@ -2169,29 +2200,34 @@ void sql3_init(){
 #if 1 //TIMER
 Fl_Input* time_input;
 Fl_Toggle_Button* time_input_btn;
-
+mutex luac_ ;
 void time_f(){	
 	string time_input_str= (time_input->value());
 	int hour=atoi( time_input_str.substr(0, 2).c_str() ); 
 	int minute=atoi( time_input_str.substr(3, 2).c_str() );
-	
-	cot(minute);
+	if(hour<10)minute=atoi( time_input_str.substr(2, 2).c_str() );
+	// cot1(minute);
 	sqlite3_stmt* st;
-	string m="0"+to_string(minute);
+	string m="0"+to_string(minute); 
 	if(m.size()>2)m=m.substr(1,2);
 	string h=to_string(hour)+":"+ m;
-	// cot(rprintf("select run from tabRobot where time='%s'",h.c_str()));
+	// cot1(rprintf("select run from tabRobot where time='%s'",h.c_str()));
     sqlite3_prepare_v2(sql3, rprintf("select id,run from tabRobot where time='%s'",h.c_str()),-1, &st, NULL); 
 	while(sqlite3_step(st)== SQLITE_ROW){ 
-	cot(sqlite3_column_text(st,0));
+	cot1(sqlite3_column_text(st,0));
 		// cot((const char*)sqlite3_column_text(st,0) );
 		
-	posa_mtx.lock();
+	luac_.lock();
 		lua_State* L=lua_init();
-		luaL_loadstring(L, (const char*)sqlite3_column_text(st,1) );
-		// lua_pcall(L, 0, 0, 0);
+		// luaL_loadstring(L, (const char*)sqlite3_column_text(st,1) );
+		// lua_pcall(L, 0, 0, 0);	ifstream input( "frobot.lua" );
+		ifstream input( "frobot.lua" );
+		stringstream str1;
+		str1<<input.rdbuf();
+		string str=str1.str()+"\n"+(const char*)sqlite3_column_text(st,1)+"\n::exit::";  
+		luaL_loadstring(L, str.c_str());
 		if (lua_pcall(L,0,0,0)!=LUA_OK) fprintf(stderr,"%s\n", lua_tostring(L,-1) );
-	posa_mtx.unlock();
+	luac_.unlock();
 	} 
 	sqlite3_finalize(st);
 }
@@ -2282,6 +2318,7 @@ int OnKeyPress(int Key, Fl_Window *MyWindow) {
    return Fl::handle_(Key, MyWindow);
 }
 #endif
+
 int main(){   
 	// test(); return 0;
 // https://www.fltk.org/doc-1.3/opengl.html#opengl_drawing
@@ -2295,21 +2332,23 @@ int main(){
 	// win=new Fl_Double_Window(0,0,w,h,"frobot");   
 	win=new Fl_Double_Windowc(0,0,w,h,"frobot");  
 	flt=new Fl_Double_Window(0,   0, 160, 480);
-	Fl_Button* bt1=new Fl_Button(0,  0, 30, 30,"Alpha");
-	Fl_Button* bt2=new Fl_Button(30,  0, 30, 30,"rota");
-	Fl_Button* bt3=new Fl_Button(60,  0, 30, 30,"gview");
-	Fl_Button* bt4=new Fl_Button(90,  0, 30, 30,"MV");
-	Fl_Button* bt5=new Fl_Button(120,  0, 30, 30,"fit");
-	Fl_Button* bt6=new Fl_Button(0,  30, 30, 30,"ik");
-	Fl_Button* bt7=new Fl_Button(30,  30, 30, 30,"lua");
-	Fl_Button* bt8=new Fl_Button(60,  30, 30, 30,"Lrun");
-	Fl_Button* bt9=new Fl_Button(90,  30, 30, 30,"rvis");
-	Fl_Button* bt10=new Fl_Button(120,  30, 30, 30,"ucs");
-	Fl_Button* bt11=new Fl_Button(0,  60, 30, 30,"dbg");
-	Fl_Button* bt12=new Fl_Button(30,  60, 30, 30,"mak");
-	time_input=new Fl_Input(60,  60, 30, 30 );
-	time_input_btn=new Fl_Toggle_Button(90,  60, 30, 30,"hdbg");
-	Fl_Button* time_f_btn=new Fl_Button(120,  60, 30, 30,"Tdbg");
+	Fl_Button* bt1=new Fl_Button(0,  0, 30, 20,"Alpha");
+	Fl_Button* bt2=new Fl_Button(30,  0, 30, 20,"rota");
+	Fl_Button* bt3=new Fl_Button(60,  0, 30, 20,"gview");
+	Fl_Button* bt4=new Fl_Button(90,  0, 30, 20,"MV");
+	Fl_Button* bt5=new Fl_Button(120,  0, 30, 20,"fit");
+	Fl_Button* bt6=new Fl_Button(0,  20, 30, 20,"ik");
+	Fl_Button* bt7=new Fl_Button(30,  20, 30, 20,"lua");
+	Fl_Button* bt8=new Fl_Button(60,  20, 30, 20,"Lrun");
+	Fl_Button* bt9=new Fl_Button(90,  20, 30, 20,"rvis");
+	Fl_Button* bt10=new Fl_Button(120,  20, 30, 20,"ucs");
+	Fl_Button* bt11=new Fl_Button(0,  40, 30, 20,"dbg");
+	Fl_Button* bt12=new Fl_Button(30,  40, 30, 20,"mak");
+	time_input=new Fl_Input(60,  40, 30, 20 );
+	time_input->textsize(12);
+	time_input_btn=new Fl_Toggle_Button(90,  40, 30, 20,"hdbg");
+	Fl_Button* time_f_btn=new Fl_Button(120,  40, 30, 20,"Tdbg");
+	Fl_Button* btpause=new Fl_Button(0,  60, 30, 20,"pause");
 	
 
 	
@@ -2325,7 +2364,7 @@ int main(){
 	fle->load();
 	flt->resizable(fle);   
 	flt->end();
-	flcv=new Fl_ViewerCV(800,0,300,300);
+	// flcv=new Fl_ViewerCV(800,0,300,300); //opencv
 	osggl=new ViewerFLTK(160,  0, 800-160, 480-10); 
 	Fl::event_dispatch(OnKeyPress);
 	osgViewer::StatsHandler *sh = new osgViewer::StatsHandler;
@@ -2348,11 +2387,18 @@ int main(){
 	osggl->setSceneData(group);
 	
 	
+	fldbg=new Fl_Help_View(800,420+20,300,60-20);
+	// fldbg->textcolor(FL_RED);
+	fldbg->textfont(5);
+	fldbg->textsize(14);
+	fldbg->value("<font face=Arial > <br></font>");
+	string fldbgstr="<b>teste</b>";
+	fldbg->value(fldbgstr.c_str());
 	
 	//botoes dos angulos
-	Fl_Double_Window* flpos=new Fl_Double_Window(800, 310, 300, 480-300);   
+	Fl_Double_Window* flpos=new Fl_Double_Window(800, 310, 300, 120);   
 	// Fl_Double_Windowc* flpos=new Fl_Double_Windowc(800, 310, 300, 480-300);   
-	Fl_Box* flposbox=new Fl_Box(0, 0, 300, 480-300);   
+	Fl_Box* flposbox=new Fl_Box(0, 0, 300, 120);   
 	// cot(flpos->w());
 	// vector<vector<Fl_Button*>> btp(ve.size());
 	// struct vix{int index;float angle; };	
@@ -2509,7 +2555,6 @@ int main(){
 		dbg_pos();	
 	});
 	
-	
 	bt12->callback([](Fl_Widget *, void* v){ 	 
         maquete->setNodeMask( (maquete->getNodeMask()==0x0) ? 0xffffffff : 0x0);	
 	});
@@ -2518,6 +2563,20 @@ int main(){
         time_f();	
 		pressuref=4;
 	});
+	
+	btpause->down_color(FL_RED ); 
+	btpause->type(FL_TOGGLE_BUTTON);
+	btpause->callback([](Fl_Widget *, void* v){ 
+		Fl_Button* btpause=(Fl_Button*)v; 
+		if(btpause->value()==1)
+			lop(i,0,pool.size())
+				pool[i]->pause=1;
+		else
+			lop(i,0,pool.size())
+				pool[i]->pause=0;	
+	},btpause);
+	
+	
 	
 	
 	bt5->do_callback();
