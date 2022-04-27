@@ -417,6 +417,7 @@ struct AdapterWidget : public Fl_Gl_Window{
 		Fl_Gl_Window::resize(x,y,w,h);
 	}
 	virtual int handle(int event){
+	// return Fl_Gl_Window::handle(event);
 		// cot(event);
 		// cot(FL_KEYDOWN);
 				// cot( Fl::event_key());
@@ -436,10 +437,10 @@ struct AdapterWidget : public Fl_Gl_Window{
 				return 1;
 			case FL_KEYDOWN:
 				// _gw->getEventQueue()->keyPress((osgGA::GUIEventAdapter::KeySymbol)Fl::event_key());
-				return 1;
+				return Fl_Gl_Window::handle(event);
 			case FL_KEYUP:
 				// _gw->getEventQueue()->keyRelease((osgGA::GUIEventAdapter::KeySymbol)Fl::event_key());
-				return 1;
+				return Fl_Gl_Window::handle(event);
 			default:
 				// pass other events to the base class
 				return Fl_Gl_Window::handle(event);
@@ -485,7 +486,7 @@ osg::Group* group = new osg::Group();
 struct osgdr;
 vector<osgdr*> ve;
 osgdr* carril;
-
+vector<std::mutex> mut=vector<std::mutex>(10);
 
 void settranparency(Node* model,bool val=1){
 	osg::StateSet* state2 = model->getOrCreateStateSet();
@@ -536,6 +537,7 @@ bool dbg_force=0;
 vvfloat posapool;
 struct posv{ vfloat p; vec3 topoint; float x; float y; float z; int posa_counter=0; bool cancel=0; int funcn=0; vbool lock_angle={};  bool pause=0;};
 vector<posv*> pool;
+std::mutex first_mtx;
 std::mutex posa_mtx;
 mutex posa_counter_mtx;
 mutex posa_erase_mtx; 
@@ -653,25 +655,30 @@ struct osgdr{
 	}
 	//ve[index]-> == this
 	//posa
-	void rotatetoposition(float newangle, posv* pov){	
+	void rotatetoposition(float newangle, posv* pov,bool manual=0){	
 		thread th([&](float newangle, posv* pov ){
+			if(pov->pause){
+				while(pov->pause)sleepms(200);
+			}
 			float precision=1;
 			if(moving==1){
 				// moving=0;
 			}
-			mtxlock(index+1);
+			if(!manual)mut[index+1].lock();
 			moving=1;
 			if(pov->cancel)moving=0;
 			// cot(angle);
 			// cot(newangle);
 			// if(newangle>anglemax)return;
-			mtxlock(9);
+			mut[9].lock();
+			// mtxlock(9);
 			float nangle=newangle-angle;
 			// cot(index);
 			// cot(newangle);
 			// cot(angle);
 			// cot(nangle);
-			mtxunlock(9);
+			mut[9].unlock();
+			// mtxunlock(9);
 			// cot(anglemax);
 			// rotate( nangle);
 			if(nangle>0){
@@ -715,7 +722,7 @@ struct osgdr{
 				}
 			}
 			moving=0;
-			mtxunlock(index+1);
+			if(!manual)mut[index+1].unlock();
 				posa_counter_mtx.lock();
 				pov->posa_counter--;
 				// cot(posa_counter);
@@ -729,8 +736,8 @@ struct osgdr{
 	void rotate( float _angle ){
 	// cot(_angle);
 		if(_angle==0)return;
-		mtxlock(0);
-				
+		// mtxlock(0);
+		first_mtx.lock();
 		// cot(index);
 		// cot(angle);
 		// lop(i,0,ve.size()) cout<<i<<" "<<ve[i]->angle<<"  ";cout<<endl;
@@ -816,7 +823,8 @@ struct osgdr{
 		}
 		dbg_pos();
 		// bound_box();
-		mtxunlock(0);
+		// first_mtx.unlock();
+		first_mtx.unlock();
 	};
 	void rotateik( float _angle ){  
  
@@ -1035,9 +1043,11 @@ void movz_ik(float z){
 		lop(j,0,ve[i]->pointsik[0].size())ve[i]->pointsik[0][j] = ve[i]->pointsik[0][j]  * Trf  ;
 
 }
+std::mutex sec_mut;
 void movetoposz(float z, posv* pov){
 	thread th([](float z, posv* pov){
 		float currz=(float)((*ve[0]->axisbegin).z());
+		// if(abs(currz-z)<3)return; //evitate tremelics
 		float rz=z-currz;
 		float speed=2;
 		// cot (currz);
@@ -1046,18 +1056,21 @@ void movetoposz(float z, posv* pov){
 		int dir=1;
 		if(z<=currz){dir=-1;   }
 		for(;;){
-			mtxlock(0);
+			// mtxlock(0);
+			first_mtx.lock();
 			if(pressuref>2){
 				pov->cancel=1;
 			}
 			// cot(dir);
 			// cot(newz);
-			if(pov->cancel){mtxunlock(0);break;}
+			if(pov->cancel){first_mtx.unlock();break;}
 			if(pov->pause){
+				first_mtx.unlock();
 				while(pov->pause)sleepms(200);
+				first_mtx.lock();
 			}
-			if(dir==1 && newz<=0){mtxunlock(0);break;}
-			if(dir==-1 && newz>=0){mtxunlock(0);break;}
+			if(dir==1 && newz<=0){first_mtx.unlock();break;}
+			if(dir==-1 && newz>=0){first_mtx.unlock();break;}
 			if(dir==1)newz-=speed;else newz+=speed;
 			osg::Matrix Trf;
 			Trf.makeTranslate( 0,0,speed*dir );	
@@ -1073,7 +1086,8 @@ void movetoposz(float z, posv* pov){
 				// rotate_pos=1;
 			// }
 			dbg_pos();
-			mtxunlock(0);
+			// first_mtx.unlock();
+			first_mtx.unlock();
 			sleepms(5);
 				// cot("PC");
 		}
@@ -2439,7 +2453,11 @@ int main(){
 				// cot(vv->index);
 				// cot(vv->angle);
 				posv* p=new posv;
-				ve[vv->index]->rotatetoposition(vv->angle,p);
+				// first_mtx.unlock();
+				// mtxunlock(vv->index+1);
+				// mut[vv->index+1].unlock();
+				ve[vv->index]->rotatetoposition(vv->angle,p,1);
+				// ve[vv->index]->rotatetoposition(vv->angle,p); //solved dont kwnow why could lead to future problems see mutexs
 				// threadDetach([&]{
 					// sleepms(10000);
 					// delete p;
