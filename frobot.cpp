@@ -58,14 +58,135 @@ extern "C" {
 // #include <condition_variable>
 #include <thread>
 #include <mutex>
-
-#include "filesystem.hpp"
-#include "regular.hpp"
-#include "threads.hpp"
-#include "timef.hpp"
-#include "arrayf.hpp"
-#include "stringf.hpp" 
+using namespace std;
+typedef vector<float> vfloat;
+typedef vector<vector<float>> vvfloat;
+typedef vector<bool> vbool;
+typedef vector<string> vstring;
+typedef vector<int> vint;
+typedef vector<vector<int>> vvint;
+// #include "filesystem.hpp"
+// #include "regular.hpp"
+// #include "threads.hpp"
+// #include "timef.hpp" 
+// #include <unistd.h>
+#define rprintf( ... )({ char buffer[256000]; sprintf (buffer, __VA_ARGS__);  buffer; })
+#define lop(var,from,to)for(int var=(from);var<(to);var++)
+#define sleepms(val) std::this_thread::sleep_for(val##ms)
+// #include "arrayf.hpp"
+// #include "stringf.hpp" 
+#define cot(var) { \
+	auto t = std::time(nullptr); \
+    auto tm = *std::localtime(&t); \
+    std::cout << std::put_time(&tm, "%H:%M:%S ") <<#var<<" "<<var<<endl; \
+}
 #define cot ;
+#define cot1(var) { \
+	auto t = std::time(nullptr); \
+    auto tm = *std::localtime(&t); \
+    std::cout << std::put_time(&tm, "%H:%M:%S ") <<#var<<" "<<var<<endl; \
+}
+vector<string> split(const string& s, const string delim, const bool keep_empty=1) {
+	vector<string> result;
+	if (delim.empty()) {result.push_back(s);
+	return result;}
+	string::const_iterator substart = s.begin(), subend;while (true) {
+		subend = search(substart, s.end(), delim.begin(), delim.end());	
+		string temp(substart, subend);	if (keep_empty || !temp.empty()) {	
+			result.push_back(temp);	}if (subend == s.end()) {break;	}
+			substart = subend + delim.size();	}	
+	return result;}
+
+void* threadDetach(std::function<void()> tf){
+    thread th(tf); 
+    th.detach(); 
+	return (void*)th.native_handle();
+}
+struct combR{
+    bool cached=false;
+    vector<unsigned int*> cache;
+    vector<int> ranges;
+    vector<int> restoR;
+    unsigned long long range;
+    int k;//=ranges.size();
+    combR(){}
+    ~combR(){}
+    combR(int n,int K,bool tocache=false);
+    combR(vector <int> Ranges,bool tocache=false);
+    vector<int> toComb(unsigned int csn);
+    void toComb(unsigned int csn,vector<int>&res);
+    vvint toCombV(vint &hist);
+    void toComb(int* res,unsigned int csn);
+    unsigned long long combNumCombinIrregular();
+    unsigned long long toCsn(int *comb);
+};
+combR::combR(int n,int K,bool tocache){
+    k=K;
+    ranges=vector<int>(k);
+    for(int i=0;i<k;i++)ranges[i]=n;
+    range = combNumCombinIrregular();
+    restoR=ranges;
+    for(int i=k-2;i>=0;i--)restoR[i]=ranges[i]*restoR[i+1];
+    if(tocache){
+        cache.resize(k);
+        for(int c=0;c<k;c++)cache[c]=new unsigned int [range];
+        for(unsigned int  i=0;i<range;i++){
+            vector<int> cf=toComb(i);
+            for(int c=0;c<k;c++)cache[c][i]=cf[c];
+        }
+        cached=true;
+    }
+}
+combR::combR(vector <int> Ranges,bool tocache){
+    ranges=Ranges;
+    k=ranges.size();
+    range = combNumCombinIrregular();
+    restoR=ranges;
+    for(int i=k-2;i>=0;i--)restoR[i]=ranges[i]*restoR[i+1];
+    if(tocache){
+        cache.resize(k);
+        for(int c=0;c<k;c++)cache[c]=new unsigned int [range];
+        for(unsigned int  i=0;i<range;i++){
+            vector<int> cf=toComb(i);
+            for(int c=0;c<k;c++)cache[c][i]=cf[c];
+        }
+        cached=true;
+    }
+}
+vector<int> combR::toComb(unsigned int csn){
+    vector<int>res(k);
+    res[k-1]=csn%restoR[k-1];
+    for(int i=0;i<k-1;i++)res[i]=csn/restoR[i+1]%ranges[i];
+    return res;
+}
+void combR::toComb(unsigned int csn,vector<int>&res){
+    res[k-1]=csn%restoR[k-1];
+    for(int i=0;i<k-1;i++)res[i]=csn/restoR[i+1];
+    for(int i=1;i<k-1;i++)res[i]%=ranges[i];
+}
+void combR::toComb(int* res,unsigned int csn){
+    res[k-1]=csn%restoR[k-1];
+    for(int i=0;i<k-1;i++)res[i]=csn/restoR[i+1];
+    for(int i=1;i<k-1;i++)res[i]%=ranges[i];
+}
+unsigned long long combR::combNumCombinIrregular(){
+    unsigned long long res=1;
+    for(int i=0;i<ranges.size();i++)res*=ranges[i];
+    return res;
+}
+unsigned long long  combR::toCsn(int *comb){
+    unsigned long long pos = 0;
+    unsigned long long rangeval = range;
+    for (int l = 0; l < k; l++) {
+        int figura = comb[l];
+        unsigned long long sector = rangeval / ranges[l];
+        rangeval = sector;
+        pos += sector * figura;
+    }
+    return pos;
+}
+
+
 
 struct flocvs;
 flocvs* flocv;
@@ -74,6 +195,8 @@ flocvs* flocv;
 vector<vector<Fl_Button*>> btp;
 struct vix{int index;float angle; };	
 vector<vector<vix*>> vixs;
+
+
 
 #if 1 //servo i2c
 // https://community.element14.com/products/devtools/single-board-computers/b/blog/posts/maaxboard-setup-for-servo-pwm-control-with-python permissions
@@ -826,10 +949,7 @@ struct osgdr{
 		// first_mtx.unlock();
 		first_mtx.unlock();
 	};
-	void rotateik( float _angle ){  
- 
-		 
-		
+	void rotateik( float _angle ){   
 		vec3 axisb=*axisbeginik;  
 		 		
 		osg::Matrix Tr;
@@ -854,8 +974,7 @@ struct osgdr{
 			lop(j,0,pointsik[0].size())pointsik[0][j] = pointsik[0][j]    * T * Ra * Tr   ; 
 			// transform->setMatrix(transform->getMatrix()   * T * Ra * Tr    );
 		} 
-  
-		 
+   
 		//todas as posteriores teem que rodar tambem 
 		lop(i,index+1,ve.size()-0){
 			// cot(ve[i]->nodesstr);
@@ -1037,6 +1156,7 @@ void goffset(vec3* offset){
 }
 
 void movz_ik(float z){
+	if(abs(z)<3)return; //evitate tremelics
 	osg::Matrix Trf;
 	Trf.makeTranslate( 0,0,z );	
 	lop(i,0,ve.size())	
@@ -1166,7 +1286,7 @@ void geraeixos(Group* group){
 	ve[idx]->nodesstr.push_back("stl/robot_armj3.stl"); 
 	ve[idx]->axis=vec3(0,1,0);
 	ve[idx]->anglemin=0;
-	ve[idx]->anglemax=170;
+	ve[idx]->anglemax=160;
 	ve[idx]->offset=offset;
 	ve[idx]->newdr(vec3(-325.77,281,-42.19),vec3(-400,281,-42.19));
 	
@@ -1447,7 +1567,7 @@ void loop(){
 
 //Fann
 #if 1
-#include "comb.hpp"
+// #include "comb.hpp"
 #include "fann.h"
 #define mathNumscale(num,factorx,min,max,midletarget)({float _mnsfd = (factorx)/2.0-(midletarget); float _mnsfactor = (float)(factorx) / ((max) - (min));( ((num) - (min)) * _mnsfactor - _mnsfd);})
 #define mathNumdescale(num,factorx,min,max,midletarget)({float _mndsfd = (factorx)/2.0-(midletarget); float _mndsfactor = (float)(factorx) / ((max) - (min));( ((num) + _mndsfd) / _mndsfactor + (min) );})
@@ -1628,8 +1748,7 @@ int posadebug(lua_State* L){
 	posa_debug=lua_tonumber(L,1); 
 	return 1;
 }
-int cancel_all(lua_State* L){
-	cot(0);
+int cancel_all(lua_State* L){ 
 	lop(i,0,pool.size()){
 		pool[i]->cancel=1;
 	}
@@ -2339,8 +2458,14 @@ int OnKeyPress(int Key, Fl_Window *MyWindow) {
    return Fl::handle_(Key, MyWindow);
 }
 #endif
-
+// #include <libssh/libssh.h>
+// #include <stdlib.h>
+// #include <stdio.h>
 int main(){   
+	cot1(getenv("test"));
+	  // char* pPath = getenv ("test");
+	  if(string(getenv("test"))=="ok")cot1("test");
+    // printf (pPath);
 	// test(); return 0;
 // https://www.fltk.org/doc-1.3/opengl.html#opengl_drawing
 // https://osg-users.openscenegraph.narkive.com/HiVHDrXM/change-camera-position
@@ -2371,6 +2496,7 @@ int main(){
 	Fl_Button* time_f_btn=new Fl_Button(120,  40, 30, 20,"Tdbg");
 	Fl_Button* btpause=new Fl_Button(0,  60, 30, 20,"pause");
 	Fl_Button* btnext=new Fl_Button(30,  60, 30, 20,"next");
+	Fl_Button* btcancel=new Fl_Button(60,  60, 30, 20,"cancel");
 	
 
 	
@@ -2613,7 +2739,15 @@ int main(){
 				
 	},btnext);
 	
-	
+	btcancel->callback([](Fl_Widget *, void* v){ 
+		Fl_Button* btcancel=(Fl_Button*)v; 
+		if(pool.size()==0)return;
+		posa_erase_mtx.lock();
+		lop(i,0,pool.size())
+			pool[i]->cancel=1;
+		posa_erase_mtx.unlock();
+				
+	},btcancel);
 	
 	
 	bt5->do_callback();

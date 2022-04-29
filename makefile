@@ -17,14 +17,17 @@ ifeq ($(OS),Windows_NT)
 else
     uname_S := $(shell uname -s)
 endif
+ifeq ($(shell uname -m),aarch64)
+	uname_S := arm
+endif
 
 ifeq ($(uname_S), Windows)
 	# LDFLAGS+= -mwindows 
 	OBJ_DIR=.objw64
-	DLIB=c:/desk/mpm/lib
-	DEPENDENCIES+=$(DLIB)/.lib/libdlibw64.a
+	# DLIB=c:/desk/mpm/lib
+	# DEPENDENCIES+=$(DLIB)/.lib/libdlibw64.a
 	# LDFLAGS+= -lscintillagtk3w 
-	LDFLAGS+= -ldlibw64 
+	# LDFLAGS+= -ldlibw64 
 	DFLAGS= -DWIN32 -DSCI_LEXER -DSCI_NAMESPACE  -D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_WARNINGS -D_WINDOWS -D_USRDLL -DLUA_COMPAT_5_1 -DLUA_COMPAT_5_2
 	LDFLAGS+= -l:liblua.a
 	LDFLAGS+= -lfann
@@ -42,22 +45,31 @@ ifeq ($(uname_S), Windows)
 endif
 ifeq ($(uname_S), Linux)
 	OBJ_DIR=.objl64
-	DLIB=/home/super/desk/Mpm/lib
-	DEPENDENCIES+=$(DLIB)/.lib/libdlibl64.a
+	# DLIB=/home/super/desk/Mpm/lib
+	# DEPENDENCIES+=$(DLIB)/.lib/libdlibl64.a
 	# LDFLAGS= -lscintillagtk3l 
-	LDFLAGS+=-ldlibl64  
+	# LDFLAGS+=-ldlibl64  
 	LDFLAGS+= -l:liblua5.2.a
 	LDFLAGS+= -l:libfann.a
 	LDFLAGS+= -l:libi2c.a
 	LDFLAGS+= -l:libboost_system.a -l:libboost_chrono.a -l:libboost_serialization.a -l:libboost_iostreams.a -l:libboost_thread.a    -l:libboost_filesystem.a -l:libboost_regex.a 
 	LDFLAGS+=  -lsqlite3 
 	LDFLAGS+= -lm -lrt -l:libstdc++.a
-	LDFLAGS+= -lrt -l:libeasylzma_s.a  -lcurl  -l:libssh2.a  -l:libssl.a  -l:libgcrypt.a  -l:libcrypto.a  -l:libgpg-error.a  -lIlmImf  -l:libboost_system.a -l:libboost_chrono.a -l:libboost_serialization.a -l:libboost_iostreams.a -l:libboost_thread.a    -l:libboost_filesystem.a -l:libboost_regex.a  -lIlmImfUtil  -l:libbz2.a  -l:libz.a -lpthread -ldl  -l:libfltk_gl.a  -l:libfltk_images.a  -ljpeg  -lpng  -l:libfltk.a -ldl -lm -lopencv_calib3d -lopencv_core -lopencv_features2d -lopencv_flann -lopencv_highgui -lopencv_imgproc  -lopencv_ml  -lopencv_objdetect -lopencv_photo -lopencv_stitching -lopencv_superres -lopencv_ts -lopencv_video -lopencv_videostab  -lGLU -l:libGL.so -l:libGLEW.so.2.0  -lfreetype  -lX11 -lXi -lXinerama -lXft  -lsupc++ -lfontconfig -lXrender -lXcursor  -lxcb-sync -lxcb -lXau -lXext -lXdmcp -lXfixes -l:libstdc++fs.a -l:libstdc++.a 
+	# LDFLAGS+= -lrt -l:libeasylzma_s.a  -lcurl  -l:libssh2.a  -l:libssl.a  -l:libgcrypt.a  -l:libcrypto.a  -l:libgpg-error.a  -lIlmImf  -l:libboost_system.a -l:libboost_chrono.a -l:libboost_serialization.a -l:libboost_iostreams.a -l:libboost_thread.a    -l:libboost_filesystem.a -l:libboost_regex.a  -lIlmImfUtil  -l:libbz2.a  -l:libz.a -lpthread -ldl  -l:libfltk_gl.a  -l:libfltk_images.a  -ljpeg  -lpng  -l:libfltk.a -ldl -lm -lopencv_calib3d -lopencv_core -lopencv_features2d -lopencv_flann -lopencv_highgui -lopencv_imgproc  -lopencv_ml  -lopencv_objdetect -lopencv_photo -lopencv_stitching -lopencv_superres -lopencv_ts -lopencv_video -lopencv_videostab  -lGLU -l:libGL.so -l:libGLEW.so.2.0  -lfreetype  -lX11 -lXi -lXinerama -lXft  -lsupc++ -lfontconfig -lXrender -lXcursor  -lxcb-sync -lxcb -lXau -lXext -lXdmcp -lXfixes -l:libstdc++fs.a -l:libstdc++.a 
+	# LDFLAGS+= -l:libeasylzma_s.a
+	LDFLAGS+= -lrt   -lcurl  -l:libssh2.a  -l:libssl.a  -l:libgcrypt.a  -l:libcrypto.a  -l:libgpg-error.a  -lIlmImf  -l:libboost_system.a -l:libboost_chrono.a -l:libboost_serialization.a -l:libboost_iostreams.a -l:libboost_thread.a    -l:libboost_filesystem.a -l:libboost_regex.a  -lIlmImfUtil  -l:libbz2.a  -l:libz.a -lpthread -ldl  -l:libfltk_gl.a  -l:libfltk_images.a  -ljpeg  -lpng  -l:libfltk.a -ldl -lm -lopencv_calib3d -lopencv_core -lopencv_features2d -lopencv_flann -lopencv_highgui -lopencv_imgproc  -lopencv_ml  -lopencv_objdetect -lopencv_photo -lopencv_stitching -lopencv_superres -lopencv_ts -lopencv_video -lopencv_videostab  -lGLU -l:libGL.so -l:libGLEW.so.2.0  -lfreetype  -lX11 -lXi -lXinerama -lXft  -lsupc++ -lfontconfig -lXrender -lXcursor  -lxcb-sync -lxcb -lXau -lXext -lXdmcp -lXfixes -l:libstdc++fs.a -l:libstdc++.a 
 
 endif
 
-INC+=-I$(DLIB)
-LDIR+=-L$(DLIB)/.lib
+ifeq ($(uname_S), arm)
+	OBJ_DIR=.objarm64
+	LDFLAGS+= -l:liblua5.2.a
+	LDFLAGS+= -l:libfann.a
+	LDFLAGS+= -l:libi2c.a
+endif
+
+# INC+=-I$(DLIB)
+# LDIR+=-L$(DLIB)/.lib
 DEPENDENCIES+=makefile
 
 	# LDFLAGS += $(shell fltk-config --ldflags )
