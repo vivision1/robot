@@ -32,7 +32,7 @@ extern "C" {
 #include <algorithm>
 // #include <boost/thread/thread.hpp>
 // #include <boost/thread/mutex.hpp> 
-#include <boost/algorithm/string/replace.hpp>
+// #include <boost/algorithm/string/replace.hpp>
 // #include <boost/algorithm/string.hpp>
 // #include "fl_editor.hpp"
 #include <FL/Fl.H>
@@ -56,8 +56,13 @@ extern "C" {
 // #include <glm/gtc/type_ptr.hpp>
 
 // #include <condition_variable>
+
+#if 1 //common
+#include <configuru.hpp>
+using namespace configuru;
 #include <thread>
 #include <mutex>
+// #include <regex>
 using namespace std;
 typedef vector<float> vfloat;
 typedef vector<vector<float>> vvfloat;
@@ -70,21 +75,34 @@ typedef vector<vector<int>> vvint;
 // #include "threads.hpp"
 // #include "timef.hpp" 
 // #include <unistd.h>
+// #define replace_all(val,from,to) std::regex_replace(val, std::regex(from), to);
 #define rprintf( ... )({ char buffer[256000]; sprintf (buffer, __VA_ARGS__);  buffer; })
 #define lop(var,from,to)for(int var=(from);var<(to);var++)
 #define sleepms(val) std::this_thread::sleep_for(val##ms)
 // #include "arrayf.hpp"
 // #include "stringf.hpp" 
 #define cot(var) { \
-	auto t = std::time(nullptr); \
-    auto tm = *std::localtime(&t); \
+	auto timeval = std::time(nullptr); \
+    auto tm = *std::localtime(&timeval); \
     std::cout << std::put_time(&tm, "%H:%M:%S ") <<#var<<" "<<var<<endl; \
 }
 #define cot ;
 #define cot1(var) { \
-	auto t = std::time(nullptr); \
-    auto tm = *std::localtime(&t); \
-    std::cout << std::put_time(&tm, "%H:%M:%S ") <<#var<<" "<<var<<endl; \
+	auto timeval_ = std::time(nullptr); \
+    auto tm_ = *std::localtime(&timeval_); \
+    std::cout << std::put_time(&tm_, "%H:%M:%S ") <<#var<<" "<<var<<endl; \
+}
+void replace_All(std::string & data, std::string toSearch, std::string replaceStr){
+    // Get the first occurrence
+    size_t pos = data.find(toSearch);
+    // Repeat till end is reached
+    while( pos != std::string::npos)
+    {
+        // Replace this occurrence of Sub String
+        data.replace(pos, toSearch.size(), replaceStr);
+        // Get the next occurrence from the current position
+        pos =data.find(toSearch, pos + replaceStr.size());
+    }
 }
 vector<string> split(const string& s, const string delim, const bool keep_empty=1) {
 	vector<string> result;
@@ -185,13 +203,25 @@ unsigned long long  combR::toCsn(int *comb){
     }
     return pos;
 }
-
-
+std::string exec(char* cmd) {
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while(!feof(pipe)) {
+    	if(fgets(buffer, 128, pipe) != NULL)
+    		result += buffer;
+    }
+    pclose(pipe);
+    return result;
+}
+#endif
 
 struct flocvs;
 flocvs* flocv;
 
-
+struct sshconnect;
+sshconnect* ssh;
 vector<vector<Fl_Button*>> btp;
 struct vix{int index;float angle; };	
 vector<vector<vix*>> vixs;
@@ -539,7 +569,7 @@ struct AdapterWidget : public Fl_Gl_Window{
 		_gw->resized(x,y,w,h);
 		Fl_Gl_Window::resize(x,y,w,h);
 	}
-	virtual int handle(int event){
+	virtual int handle(int event){ 
 	// return Fl_Gl_Window::handle(event);
 		// cot(event);
 		// cot(FL_KEYDOWN);
@@ -2000,7 +2030,7 @@ struct FlEditor:Fl_Text_Editor{
 		// if(tipo==0)load(); 
 	}
 	int handle(int e){ 
-		int ret=Fl_Text_Editor::handle(e);
+		int ret=Fl_Text_Editor::handle(e); 
 		// if(e==FL_KEYDOWN &&  Fl::event_state() ==FL_CTRL && Fl::event_key()==102) find_cb();
 		if(e==FL_KEYDOWN){
 			if(tipo==0)save();
@@ -2044,14 +2074,16 @@ struct FlEditor:Fl_Text_Editor{
 			}
 			myfile.close();
 			string t=lines.str();
-			boost::replace_all(t, "\r", "");
+			replace_All(t, "\r", "");
+			// boost::replace_all(t, "\r", "");
 			texto->text(t.c_str());
 		}
 		else cout << "Unable to open file "<<fname<<endl; 
 	}
 	void save(){
 		string t=texto->text();
-		boost::replace_all(t, "\r", ""); 
+		replace_All(t, "\r", "");
+		// boost::replace_all(t, "\r", ""); 
 		ofstream o(fname);
 		o<<t;
 	}
@@ -2179,7 +2211,7 @@ void input_callback(Fl_Widget *, void* v){
 		
 	}
 }
-void fill_input(int idx,bool newr){	
+void fill_input(int idx,bool newr){	 
 	int hh=18;
 	int hh1=250;
 	flml_id.push_back(new Fl_Input(0,idx*hh1,30,hh));
@@ -2278,7 +2310,7 @@ void choice_cbnum(Fl_Widget *w, void *userdata) {
 	sqlite3_finalize(st);
 }
 // http://localhost/vivision/phpliteadmin.php?database=..%2Frobot%5Crobot.sqlite
-void sql3_init(){
+void sql3_init(){  
 	Fl_Button* bt13=new Fl_Button(0,  90, 30, 30,"luaTx");
 	bt14=new Fl_Button(30,  90, 30, 30,"bdAll");
 	Fl_Button* bt15=new Fl_Button(60,  90, 30, 30,"bdRun");	
@@ -2458,13 +2490,251 @@ int OnKeyPress(int Key, Fl_Window *MyWindow) {
    return Fl::handle_(Key, MyWindow);
 }
 #endif
-// #include <libssh/libssh.h>
+
 // #include <stdlib.h>
-// #include <stdio.h>
-int main(){   
-	cot1(getenv("test"));
+#if 1 //SSH
+#include <libssh2.h>
+#ifdef __linux__
+#include <netinet/in.h>
+#include <arpa/inet.h>
+// #include <netdb.h>
+#endif
+struct sshconnect{
+	LIBSSH2_SESSION *session;
+	LIBSSH2_CHANNEL *channel; 
+	int sock;
+	int rc;
+	string ip;
+	string user;
+	string pass;
+	bool connected=0;
+	void disconnect(){
+		if(connected==0)return;
+	    libssh2_session_disconnect(session, "Normal Shutdown, Thank you for playing");
+		libssh2_session_free(session); 
+		#ifdef WIN32
+		closesocket(sock);
+		#else
+		close(sock);
+		#endif
+		fprintf(stderr, "all done\n");	 
+		libssh2_exit();
+		connected=0;
+	}
+	sshconnect(string _ip,string _user,string _pass){
+		ip=_ip;
+		user=_user;
+		pass=_pass;
+		cot1(connect_());
+	}
+	int connect_(){
+		// disconnect();
+		struct sockaddr_in sin;
+		unsigned long hosti = inet_addr(ip.c_str());
+		// struct hostent *host;  
+		// if((host=gethostbyname(hostname.c_str()))==0){printf("errorhost");return;}
+		// long hosti=*(long*)(host->h_addr);
+#ifdef WIN32
+    WSADATA wsadata;
+    int err; 
+    err = WSAStartup(MAKEWORD(2, 0), &wsadata);
+    if(err != 0) {
+        fprintf(stderr, "WSAStartup failed with error: %d\n", err);
+        return 1;
+    }
+#endif
+		rc = libssh2_init (0);
+		if (rc != 0) {
+			fprintf (stderr, "libssh2 initialization failed (%d)\n", rc);
+			return 1;
+		}
+		sock = socket(AF_INET, SOCK_STREAM, 0);
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_port = htons(22);
+		sin.sin_addr.s_addr = hosti;
+		if (connect(sock, (struct sockaddr*)(&sin), sizeof(sin)) != 0) {
+			fprintf(stderr, "failed to connect!\n");
+			return 1;
+		}
+		session = libssh2_session_init();
+		if(!session){
+			fprintf(stderr, "libssh2_session_init Failure establishing: %d\n", rc);
+			return 1;
+		}
+		// libssh2_session_set_blocking(session, 1);
+		lop(tries,0,5){
+			rc = libssh2_session_handshake(session, sock);
+		if(rc) {
+			fprintf(stderr, "Failure establishing SSH session: %d\n", rc);
+			if(tries>3)return 1;
+			sleepms(200);
+		}else break;
+		}
+		const char *fingerprint=fingerprint = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA1);
+		fprintf(stderr, "Fingerprint: ");
+		for(int i = 0; i < 20; i++) {
+			fprintf(stderr, "%02X ", (unsigned char)fingerprint[i]);
+		}
+		fprintf(stderr, "\n");
+		if (libssh2_userauth_password(session, user.c_str(), pass.c_str())) {
+			fprintf(stderr, "Authentication by password failed.\n");
+			disconnect();
+			return 1;
+		}
+		connected=1;
+		cot1("connected");		
+		return 0;
+		// if (libssh2_channel_request_pty(channel, "vanilla")) {
+			// fprintf(stderr, "Failed requesting pty\n");
+		// }
+		// if (libssh2_channel_shell(channel)) {
+			// fprintf(stderr, "Unable to request shell on allocated pty\n");
+		// }
+	}
+
+ 	static int waitsocket(int socket_fd, LIBSSH2_SESSION *session){
+		struct timeval timeout;
+		int rc;
+		fd_set fd;
+		fd_set *writefd = NULL;
+		fd_set *readfd = NULL;
+		int dir; 
+		timeout.tv_sec = 10;
+		timeout.tv_usec = 0; 
+		FD_ZERO(&fd); 
+		FD_SET(socket_fd, &fd); 
+		/* now make sure we wait in the correct direction */ 
+		dir = libssh2_session_block_directions(session); 
+		if(dir & LIBSSH2_SESSION_BLOCK_INBOUND)
+			readfd = &fd; 
+		if(dir & LIBSSH2_SESSION_BLOCK_OUTBOUND)
+			writefd = &fd; 
+		rc = select(socket_fd + 1, readfd, writefd, NULL, &timeout); 
+		return rc;
+	}
+	string exec(string cmd){
+		if(connected==0)return "Error";
+		/* Exec non-blocking on the remove host */ 
+		while((channel = libssh2_channel_open_session(session)) == NULL &&
+			libssh2_session_last_error(session, NULL, NULL, 0) ==LIBSSH2_ERROR_EAGAIN) {
+			waitsocket(sock, session);
+		}
+		if(channel == NULL) {
+			fprintf(stderr, "Error channel\n");
+			return "Error";
+		}
+		int bytecount = 0;	
+		// libssh2_session_set_blocking(session, 0);
+		// while((rc = libssh2_channel_write(channel, cmd.c_str(),sizeof(cmd.c_str()))) == LIBSSH2_ERROR_EAGAIN) {
+			// waitsocket(sock, session);
+		// }
+		// while((rc = libssh2_channel_send_eof(channel) == LIBSSH2_ERROR_EAGAIN)) {
+			// waitsocket(sock, session);
+		// }
+		// libssh2_channel_write(channel, cmd.c_str(),strlen(cmd.c_str()));
+		// libssh2_channel_send_eof(channel);
+		
+		while((rc = libssh2_channel_exec(channel, cmd.c_str())) == LIBSSH2_ERROR_EAGAIN) {
+			waitsocket(sock, session);
+		}
+		// while((rc = libssh2_channel_send_eof(channel) == LIBSSH2_ERROR_EAGAIN)) {
+			// waitsocket(sock, session);
+		// }
+		// return "";
+		// rc = libssh2_channel_request_shell(channel);
+		if(rc != 0) {
+			fprintf(stderr, "Error libssh2_channel_exec\n");
+			// exit(1);
+		}
+		string res;
+		for( ;; ){
+			/* loop until we block */
+			int rc;
+			do {
+				char buffer[0x4000];
+				rc = libssh2_channel_read( channel, buffer, sizeof(buffer) );
+				if( rc > 0 )
+				{
+					int i;
+					bytecount += rc;
+					// fprintf(stderr, "We read:\n");
+					for( i=0; i < rc; ++i ){
+						res+=buffer[i];
+						// fputc( buffer[i], stderr);
+					}
+					// fprintf(stderr, "\n");
+				}
+				else {
+					// if( rc != LIBSSH2_ERROR_EAGAIN )
+						/* no need to output this for the EAGAIN case */
+						// fprintf(stderr, "libssh2_channel_read returned %d\n", rc);
+				}
+			}
+			while( rc > 0 );
+			/* this is due to blocking that would occur otherwise so we loop on
+			   this condition */
+			if( rc == LIBSSH2_ERROR_EAGAIN ) {
+				waitsocket(sock, session);
+			} else break;
+		}
+		// while((rc = libssh2_channel_send_eof(channel) == LIBSSH2_ERROR_EAGAIN)) {
+			// waitsocket(sock, session);
+		// }
+		
+		// int bytecount = 0;
+		int exitcode = 127;		
+		char *exitsignal=(char *)"none";
+		while( (rc = libssh2_channel_close(channel)) == LIBSSH2_ERROR_EAGAIN )
+			waitsocket(sock, session);
+		if( rc == 0 ){
+			exitcode = libssh2_channel_get_exit_status( channel );
+			libssh2_channel_get_exit_signal(channel, &exitsignal,NULL, NULL, NULL, NULL, NULL);
+		}
+		// if (exitsignal)
+			// fprintf(stderr, "\nGot signal: %s\n", exitsignal);
+		// else
+			// fprintf(stderr, "\nEXIT: %d bytecount: %d\n", exitcode, bytecount);
+		libssh2_channel_free(channel);
+		channel = NULL;
+		return res;	
+	}
+};
+void elevator(){
+	thread th([](){
+		ssh=new sshconnect("192.168.1.160","super","bdc");
+		// ssh->exec("cd desk/bwmission/robot");
+		// sleepms(1000);
+		string res=ssh->exec("cd desk/bwmission/robot; echo '2'>>frobot_elevator.txt");
+		for(;;){
+			res=ssh->exec("cd desk/bwmission/robot; cat frobot_elevator.txt");
+			if(res=="Error"){
+				while(ssh->connect_())sleepms(2000);
+			}
+			cot1(res);
+			sleepms(2000);
+		}
+	});
+	th.detach();
+	// ssh->exec("uptime");
+	// ssh->disconnect();
+}
+#endif
+int main(){
+
+	// string s = "example string";
+    // string r = std::regex_replace(s, std::regex("xa"), "yr");  
+	// cot1(r);
+	string t="teste";
+	replace_All(t, "te", "pa");
+	cot1(t);
+	string ms="ww";
+	// sleepms(2000);
+	vint pp={7,8,7};
+	cot1(pp);
+	// cot1(getenv("test"));
 	  // char* pPath = getenv ("test");
-	  if(string(getenv("test"))=="ok")cot1("test");
+	  // if(string(getenv("test"))=="ok")cot1("test");
     // printf (pPath);
 	// test(); return 0;
 // https://www.fltk.org/doc-1.3/opengl.html#opengl_drawing

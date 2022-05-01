@@ -31,10 +31,11 @@ ifeq ($(uname_S), Windows)
 	DFLAGS= -DWIN32 -DSCI_LEXER -DSCI_NAMESPACE  -D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_WARNINGS -D_WINDOWS -D_USRDLL -DLUA_COMPAT_5_1 -DLUA_COMPAT_5_2
 	LDFLAGS+= -l:liblua.a
 	LDFLAGS+= -lfann
+	LDFLAGS+=  -lssh2
 	# LDFLAGS+= -lflscintillaw64 -lglew32 -l:libglew32.a -lcurl -lBZ2 
 	LDFLAGS+= -l:libfltk_gl.a -l:libfltk.a -liconv   -l:libglew32.a -lopengl32 -lgdi32 -lglu32 -lWs2_32
 	LDFLAGS+= -l:libboost_system-mt.a -l:libboost_chrono-mt.a -l:libboost_serialization-mt.a -l:libboost_iostreams-mt.a -l:libboost_thread-mt.a    -l:libboost_filesystem-mt.a -l:libboost_regex-mt.a
-	LDFLAGS+=  -lsqlite3 
+	LDFLAGS+=  -l:libsqlite3.a 
 	LDFLAGS+=  -lstdc++fs -l:libstdc++.a 
 	LDFLAGS+= -l:libbz2.a -l:libwinpthread.a
 	# LDFLAGS+=  -pipe -Wl,--enable-auto-import -Wl,--enable-runtime-pseudo-reloc
